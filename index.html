@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+    <title>我的全能月曆記帳本</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #eef2ff;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 三欄式佈局容器 */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 240px 1.5fr 1fr;
+            gap: 20px;
+        }
+
+        /* 通用卡片樣式 */
+        .card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        h3 { margin-top: 0; font-size: 1.1rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+
+        /* --- 左側：常用項目 --- */
+        .favorites-card { height: fit-content; }
+        .fav-input-group { margin-bottom: 15px; }
+        .fav-list { list-style: none; padding: 0; margin: 0; }
+        .fav-item {
+            background: #f1f5f9;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .fav-item:hover { background: var(--primary-light); color: var(--primary); transform: translateX(5px); }
+        .del-fav { color: #ccc; font-size: 18px; padding: 0 5px; }
+        .del-fav:hover { color: var(--danger); }
+
+        /* --- 修改：月曆頭部佈局 --- */
+        .calendar-header {
+            display: flex;
+            justify-content: center; /* 改為居中佈局 */
+            align-items: center;
+            gap: 15px;               /* 在按鈕與文字間加入固定間距 */
+            margin-bottom: 25px;
+        }
+
+        /* --- 修改：導覽按鈕大小與形狀 --- */
+        .btn-nav {
+            background: #f1f5f9;
+            border: none;
+            width: 36px;             /* 設定固定寬度 */
+            height: 36px;            /* 設定固定高度 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;      /* 變成圓形按鈕，比較精緻 */
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text-muted);
+            transition: 0.2s;
+            flex-shrink: 0;          /* 防止按鈕被擠壓變形 */
+        }
+
+        .btn-nav:hover {
+            background: var(--primary);
+            color: white;
+        }
+        /* --- 修改：年份月份文字 --- */
+        #month-display {
+            margin: 0;               /* 移除預設的上下邊距 */
+            font-size: 1.25rem;
+            white-space: nowrap;     /* 防止日期強行換行 */
+            min-width: 150px;        /* 給予文字一個最小寬度，避免按鈕靠得太近 */
+            text-align: center;
+            letter-spacing: 1px;     /* 稍微增加字距，看起來更舒適 */
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            text-align: center;
+        }
+        .day-name { font-weight: bold; color: var(--text-muted); padding: 10px 0; font-size: 0.9rem; }
+        .day {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 10px;
+            border: 1px solid #f1f5f9;
+            position: relative;
+            font-weight: 500;
+        }
+        .day:hover { background: var(--primary-light); }
+        
+        /* 今天樣式 */
+        .day.today {
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            background: var(--primary-light);
+        }
+        
+        /* 選取樣式 */
+        .day.selected {
+            background: var(--primary) !important;
+            color: white !important;
+            border-color: var(--primary) !important;
+        }
+
+        /* 資料圓點提示 */
+        .day.has-data::after {
+            content: '';
+            width: 5px;
+            height: 5px;
+            background: var(--secondary);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 5px;
+        }
+
+        /* --- 右側：紀錄面板 --- */
+        .record-panel { display: flex; flex-direction: column; gap: 20px; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { padding: 15px; border-radius: 12px; background: #f8fafc; }
+        .stat-box small { color: var(--text-muted); font-size: 0.8rem; }
+        .stat-box div { font-size: 1.2rem; font-weight: bold; margin-top: 5px; }
+
+        .income { color: var(--secondary); }
+        .expense { color: var(--danger); }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            outline: none;
+        }
+        button.btn-add {
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button.btn-add:hover { opacity: 0.9; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; color: var(--text-muted); font-size: 0.85rem; padding-bottom: 10px; }
+        td { padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+
+        @media (max-width: 1000px) {
+            .container { grid-template-columns: 1fr; }
+            .favorites-card { order: -1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <aside class="card favorites-card">
+        <h3>✨ 常用項目</h3>
+        <div class="fav-input-group">
+            <input type="text" id="new-fav-name" placeholder="名稱 (如: 早餐)">
+            <button onclick="addFavorite()" style="font-size: 0.8rem; padding: 5px;">＋ 加入列表</button>
+        </div>
+        <ul id="fav-list" class="fav-list">
+            </ul>
+    </aside>
+    
+    <main class="card calendar-card">
+        <div class="calendar-header">
+            <button class="btn-nav" onclick="changeMonth(-1)">❮</button>
+            <h2 id="month-display" onclick="viewFullMonth()" style="cursor:pointer;">2024年 1月</h2>
+            <button class="btn-nav" onclick="changeMonth(1)">❯</button>
+        </div>
+        <div class="calendar-grid" id="calendar-days">
+            </div>
+    </main>
+
+    <section class="record-panel">
+        <div class="card">
+            <h3 id="view-title">摘要載入中...</h3>
+            <div class="summary-grid">
+                <div class="stat-box" style="grid-column: span 2; border-bottom: 3px solid var(--secondary); background: #f0fdf4;">
+                    <small>💰 目前總存款 (帳戶餘額)</small>
+                    <div id="current-savings" style="font-size: 1.8rem; color: var(--secondary);">$0</div>
+                </div>
+    
+                <div class="stat-box">
+                    <small id="income-label">本月收入</small> <div id="total-income" class="income">$0</div>
+                </div>
+                <div class="stat-box">
+                    <small id="expense-label">本月支出</small> <div id="total-expense" class="expense">$0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <strong id="selected-date-label">請點選日期開始記帳</strong>
+            <form id="finance-form">
+                <input type="text" id="desc" placeholder="項目內容" required>
+                <input type="number" id="amt" placeholder="金額" required>
+                <select id="type">
+                    <option value="expense">支出</option>
+                    <option value="income">收入</option>
+                </select>
+                <button type="submit" class="btn-add">儲存紀錄</button>
+            </form>
+        </div>
+
+        <div class="card" style="flex-grow: 1; overflow-y: auto; max-height: 400px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th>金額</th>
+                        <th style="width: 40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="record-list">
+                    </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script src="script.js" defer></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker 註冊成功'))
+                .catch(err => console.log('Service Worker 註冊失敗', err));
+        });
+    }
+</script>
+
+</body>
+</html>
